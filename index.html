@@ -6,6 +6,7 @@
     <script src="phaser.min.js"></script>
     <script src="src/boot.js"></script>
     <script src="src/HomePage.js"></script>
+    <script src="src/TheGame.js"></script>
 </head>
 <body>
 
@@ -14,6 +15,7 @@
         const game = new Phaser.Game(gameWidth, gameHeight, Phaser.CANVAS, "game");
         game.state.add("Boot", boot);
         game.state.add("HomePage", HomePage);
+        game.state.add("TheGame", TheGame);
         game.state.start("Boot");
     })();
 </script>

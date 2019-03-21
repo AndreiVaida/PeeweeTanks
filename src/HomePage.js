@@ -15,4 +15,8 @@ class HomePage {
         playButton.anchor.setTo(0.5, 0.5);
     }
 
+    playTheGame() {
+        this.game.state.start("TheGame");
+    }
+
 }
