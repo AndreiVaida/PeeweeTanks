@@ -9,6 +9,8 @@ class TheGame {
         this.collisionGroup = null;
         this.cursors = null;
         this.spaceKey = null;
+        this.healthCount = 100;
+        this.healthIndicator = null;
     }
 
     preload() {
@@ -50,6 +52,9 @@ class TheGame {
 
         this.background.inputEnabled = true;
         this.background.events.onInputDown.add(this.clickListener, this);
+
+        // screen text
+        this.healthIndicator = this.add.text(8, 8, 'Health: ' + this.healthCount + '%', { font: "18px Century Gothic", fill: "#ffffff" });
     }
 
     createBullet() {
@@ -82,25 +87,29 @@ class TheGame {
         });
 
         // tank movement
-        this.tankBody.body.velocity.x = 0;
-        if (this.cursors.left.isDown || this.aKey.isDown) {
-            this.tankBody.body.velocity.x = -100;
-        } else if (this.cursors.right.isDown || this.dKey.isDown) {
-            this.tankBody.body.velocity.x = 100;
-        }
-        if (this.spaceKey.isDown && this.tankBody.body.touching.down) {
-            this.tankBody.body.velocity.y = -500;
-        }
-        if (this.rKey.isDown) {
-            this.resetTankPosition()
-        }
+        if (this.tankBody.body) {
+            this.tankBody.body.velocity.x = 0;
+            if (this.cursors.left.isDown || this.aKey.isDown) {
+                this.tankBody.body.velocity.x = -100;
+            } else if (this.cursors.right.isDown || this.dKey.isDown) {
+                this.tankBody.body.velocity.x = 100;
+            }
+            if (this.spaceKey.isDown && this.tankBody.body.touching.down) {
+                this.tankBody.body.velocity.y = -500;
+            }
+            if (this.rKey.isDown) {
+                this.resetTankPosition()
+            }
 
-        // turret rotation
-        this.tankTurret.rotation = this.game.physics.arcade.angleToPointer(this.tankBody);
+            // turret rotation
+            this.tankTurret.rotation = this.game.physics.arcade.angleToPointer(this.tankBody);
+        }
     }
 
     clickListener() {
-        this.fire();
+        if (this.tankBody.body) {
+            this.fire();
+        }
     }
 
     paused() {
@@ -123,11 +132,12 @@ class TheGame {
         this.tankBody.reset(40, 550);
     }
 
-    explode(bullet) {
-        const x = bullet.x - 90;
-        const y = bullet.y - 180;
-        bullet.destroy();
+    explode(objectToExplode, size = 1) {
+        const x = objectToExplode.x - 90*size;
+        const y = objectToExplode.y - 180*size;
+        objectToExplode.destroy();
         const explosion = this.add.sprite(x, y, 'explosion');
+        explosion.scale.setTo(size, size);
         this.add.tween(explosion).to( { alpha: 0 }, 500, "Linear", true);
         setTimeout(() => {
             explosion.destroy();
@@ -135,6 +145,21 @@ class TheGame {
     }
 
     giveDamage() {
+        this.healthCount -= 25;
+        if (this.healthCount < 0) {
+            this.healthCount = 0;
+        }
+        this.healthIndicator.text = 'Health: ' + this.healthCount + '%';
 
+        if (this.healthCount === 0) {
+            this.destroyTank();
+        }
+    }
+
+    destroyTank() {
+        this.explode(this.tankBody, 2);
+        setTimeout(() => {
+            alert("GAME OVER");
+        }, 1000);
     }
 }
