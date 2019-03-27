@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Peewee Tanks</title>
+    <script src="phaser.min.js"></script>
+    <script src="js/boot.js"></script>
+    <script src="js/HomePage.js"></script>
+    <script src="js/TheGame.js"></script>
+</head>
+<body>
+
+<script>
+    (() => {
+        const game = new Phaser.Game(gameWidth, gameHeight, Phaser.CANVAS, "game");
+        game.state.add("Boot", boot);
+        game.state.add("HomePage", HomePage);
+        game.state.add("TheGame", TheGame);
+        game.state.start("Boot");
+    })();
+</script>
+
+</body>
+</html>
