@@ -7,16 +7,19 @@ class TheGame {
         this.land = null;
         this.tankBody = null;
         this.tankTurret = null;
-        this.bullets = [];
+        this.bullets = null;
         this.collisionGroup = null;
         this.cursors = null;
         this.spaceKey = null;
-        this.healthCount = 100;
+        this.healthCount = null;
         this.healthIndicator = null;
         this.initialTankPositionX = null;
+        this.explosion1Sound = null;
+        this.gameSound = null;
+        this.musicLost = null;
         // multiplayer
         this.socket = null;
-        this.enemies = [];
+        this.enemies = null;
         this.prevPos = null;
         game = this;
     }
@@ -29,7 +32,10 @@ class TheGame {
         this.game.load.image('tankBody_Enemy', 'assets/tankBody_Enemy.png');
         this.game.load.image('tankTurret_Enemy', 'assets/tankTurret_Enemy.png');
         this.game.load.image('cannonBullet', 'assets/CannonBullet.png');
-        this.game.load.image('explosion', 'assets/Explosion1.gif');
+        this.game.load.spritesheet('explosion', 'assets/Explosion1Sprite.png', 200, 200);
+        this.game.load.audio('explosion1Sound', 'assets/Explosion1.mp3');
+        this.game.load.audio('menuSound', 'assets/music_race_loop.wav');
+        this.game.load.audio('musicLost', 'assets/musicLost.mp3');
     }
 
     create() {
@@ -37,6 +43,18 @@ class TheGame {
         this.game.physics.startSystem(Phaser.Physics.ARCADE);
         this.collisionGroup = this.game.add.group();
         this.collisionGroup.enableBody = true;
+        this.explosion1Sound = this.game.sound.add("explosion1Sound");
+        this.bullets = [];
+        this.healthCount = 100;
+        this.enemies = [];
+
+        // sounds
+        this.gameSound = this.game.sound.add("menuSound");
+        this.gameSound.volume = 0.4;
+        this.gameSound.loop = true;
+        this.gameSound.play();
+        this.musicLost = this.game.sound.add("musicLost");
+        this.musicLost.loop = false;
 
         // background & land
         this.background = this.add.sprite(0, 0, 'background');
@@ -195,10 +213,13 @@ class TheGame {
         objectToExplode.destroy();
         const explosion = this.add.sprite(x, y, 'explosion');
         explosion.scale.setTo(size, size);
-        this.add.tween(explosion).to( { alpha: 0 }, 500, "Linear", true);
+        // this.add.tween(explosion).to( { alpha: 0 }, 500, "Linear", true);
+        explosion.animations.add('explode', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], 60, false);
+        explosion.play('explode');
+        this.explosion1Sound.play();
         setTimeout(() => {
             explosion.destroy();
-        }, 500);
+        }, 1000);
     }
 
     giveDamage() {
@@ -292,7 +313,10 @@ class TheGame {
                 if (game.tankBody.body) {
                     alert("YOU WON !");
                 }
+                game.gameSound.stop();
+                game.musicLost.play();
                 game.socket.emit('remove player');
+                game.socket.close();
                 game.game.state.start('HomePage');
             }, 1000);
         }
