@@ -15,7 +15,8 @@ const server = http.createServer(ecstatic({root: path.resolve(__dirname, '../pub
       client.on('disconnect', () => onRemovePlayer(client));
       client.on('move player', (player) => onMovePlayer(client, player));
       client.on('new shoot', (shoot) => onShootCannonball(client, shoot));
-    })
+    });
+    addCloud();
   });
 
 class Player {
@@ -64,3 +65,22 @@ const onRemovePlayer = client => {
   delete players[client.id];
   io.emit('remove player', removePlayer);
 };
+
+function addCloud() {
+  setTimeout(() => {
+    if (!isEmpty(players)) {
+      log(`add cloud`);
+      const leftSide = Math.round(Math.random()) === 0;
+      const yOffset = Math.round(Math.random() * 200) - 100;
+      io.emit('add cloud', {leftSide, yOffset});
+    }
+    addCloud();
+  }, 5000);
+}
+
+function isEmpty(obj) {
+  for (let property in obj) {
+    return false;
+  }
+  return true;
+}

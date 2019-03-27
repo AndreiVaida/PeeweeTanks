@@ -8,6 +8,7 @@ class TheGame {
         this.tankBody = null;
         this.tankTurret = null;
         this.bullets = null;
+        this.clouds = null;
         this.collisionGroup = null;
         this.cursors = null;
         this.spaceKey = null;
@@ -27,6 +28,7 @@ class TheGame {
     preload() {
         this.game.load.image('background', 'assets/LowPolyMountain2.jpg');
         this.game.load.image('land', 'assets/LowPolyMountain2-LandOnly.jpg');
+        this.game.load.image('cloud', 'assets/Cloud.png');
         this.game.load.image('tankBody', 'assets/tankBody.png');
         this.game.load.image('tankTurret', 'assets/tankTurret.png');
         this.game.load.image('tankBody_Enemy', 'assets/tankBody_Enemy.png');
@@ -45,6 +47,7 @@ class TheGame {
         this.collisionGroup.enableBody = true;
         this.explosion1Sound = this.game.sound.add("explosion1Sound");
         this.bullets = [];
+        this.clouds = [];
         this.healthCount = 100;
         this.enemies = [];
 
@@ -99,6 +102,7 @@ class TheGame {
         this.socket.on('move player', this.onMovePlayer);
         this.socket.on('new shoot', this.onShootCannonball);
         this.socket.on('remove player', this.onRemovePlayer);
+        this.socket.on('add cloud', this.onAddCloud);
     }
 
     update() {
@@ -116,7 +120,7 @@ class TheGame {
             const hitLand = this.game.physics.arcade.collide(bullet, this.collisionGroup);
             // this tank
             const hitTank = this.game.physics.arcade.collide(bullet, this.tankBody);
-            // multiplayer
+            // other tanks
             let hitOtherPlayer;
             for (let player of this.enemies) {
                 hitOtherPlayer = this.game.physics.arcade.collide(bullet, player.tankBody);
@@ -124,11 +128,26 @@ class TheGame {
                     break;
                 }
             }
+            // clouds
+            let hitCloud;
+            let hittedCloud = null;
+            this.clouds.forEach((cloud, index, list) => {
+                hitCloud = this.game.physics.arcade.collide(bullet, cloud);
+                if (hitCloud) {
+                    hittedCloud = cloud;
+                    list.splice(index, 1);
+                    return;
+                }
+            });
 
-            if (hitLand || hitTank || hitOtherPlayer) {
+            if (hitLand || hitTank || hitOtherPlayer || hitCloud) {
                 this.explode(bullet);
                 if (hitTank) {
                     this.giveDamage();
+                }
+                if (hitCloud) {
+                    this.explode(hittedCloud);
+                    console.log(this.clouds.length);
                 }
                 list.splice(index, 1);
             }
@@ -237,6 +256,7 @@ class TheGame {
 
     destroyTank() {
         this.explode(this.tankBody, 2);
+        game.musicLost.play();
         setTimeout(() => {
             alert("GAME OVER");
         }, 1000);
@@ -314,7 +334,6 @@ class TheGame {
                     alert("YOU WON !");
                 }
                 game.gameSound.stop();
-                game.musicLost.play();
                 game.socket.emit('remove player');
                 game.socket.close();
                 game.game.state.start('HomePage');
@@ -329,5 +348,21 @@ class TheGame {
             }
         }
         return false
+    }
+
+    onAddCloud(data) {
+        let x = gameWidth;
+        if (data.leftSide) {
+            x = 0;
+        }
+        let cloud = game.add.sprite(x, 200 + data.yOffset, 'cloud');
+        game.game.physics.arcade.enable(cloud);
+        if (data.leftSide) {
+            cloud.body.velocity.x = 50;
+        }
+        else {
+            cloud.body.velocity.x = -50;
+        }
+        game.clouds.push(cloud);
     }
 }
