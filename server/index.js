@@ -12,6 +12,7 @@ const server = http.createServer(ecstatic({root: path.resolve(__dirname, '../pub
     io.on('connection', client => {
       client.on('new player', (player) => onNewPlayer(client, player));
       client.on('remove player', () => onRemovePlayer(client));
+      client.on('disconnect', () => onRemovePlayer(client));
       client.on('move player', (player) => onMovePlayer(client, player));
       client.on('new shoot', (shoot) => onShootCannonball(client, shoot));
     })

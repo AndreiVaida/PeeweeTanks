@@ -18,7 +18,6 @@ class TheGame {
         this.socket = null;
         this.enemies = [];
         this.prevPos = null;
-        this.playerId = null;
         game = this;
     }
 
@@ -240,7 +239,7 @@ class TheGame {
             return;
         }
         console.log(`new player connected: ${data.id}`);
-        var duplicate = game.getEnemyById(data.id);
+        const duplicate = game.getEnemyById(data.id);
         if (duplicate) {
             console.log('duplicate player!');
             return;
@@ -280,13 +279,23 @@ class TheGame {
             return;
         }
         console.log(`remove player: ${data.id}`);
-        var removePlayer = game.getEnemyById(data.id);
+        const removePlayer = game.getEnemyById(data.id);
         if (!removePlayer) {
             console.log(`player not found: ${data.id}`);
             return;
         }
         game.explode(removePlayer.tankBody, 2);
         game.enemies.splice(game.enemies.indexOf(removePlayer), 1);
+
+        if (game.enemies.length === 0) {
+            setTimeout(() => {
+                if (game.tankBody.body) {
+                    alert("YOU WON !");
+                }
+                game.socket.emit('remove player');
+                game.game.state.start('HomePage');
+            }, 1000);
+        }
     }
 
     getEnemyById(id) {
