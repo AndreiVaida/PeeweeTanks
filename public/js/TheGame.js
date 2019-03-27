@@ -78,6 +78,7 @@ class TheGame {
         this.socket.on('disconnect', this.onSocketDisconnect);
         this.socket.on('new player', this.onNewPlayer);
         this.socket.on('move player', this.onMovePlayer);
+        this.socket.on('new shoot', this.onShootCannonball);
         this.socket.on('remove player', this.onRemovePlayer);
     }
 
@@ -94,8 +95,18 @@ class TheGame {
                 return;
             }
             const hitLand = this.game.physics.arcade.collide(bullet, this.collisionGroup);
+            // this tank
             const hitTank = this.game.physics.arcade.collide(bullet, this.tankBody);
-            if (hitLand || hitTank) {
+            // multiplayer
+            let hitOtherPlayer;
+            for (let tank of this.enemies) {
+                hitOtherPlayer = this.game.physics.arcade.collide(bullet, tank);
+                if (hitOtherPlayer) {
+                    break;
+                }
+            }
+
+            if (hitLand || hitTank || hitOtherPlayer) {
                 this.explode(bullet);
                 if (hitTank) {
                     this.giveDamage();
@@ -170,7 +181,7 @@ class TheGame {
         this.physics.arcade.velocityFromRotation(this.tankTurret.rotation, 1000, bullet.body.velocity);
 
         // multiplayer
-        this.socket.emit('new shoot', {x: bullet.x, y: bullet.y, rotation: bullet.rotation});
+        this.socket.emit('new shoot', {x: bullet.x, y: bullet.y, angle: bullet.rotation});
     }
 
     resetTankPosition() {
@@ -248,6 +259,18 @@ class TheGame {
         movePlayer.tankBody.x = data.x;
         movePlayer.tankBody.y = data.y;
         movePlayer.tankTurret.rotation = data.turretAngle;
+    }
+
+    onShootCannonball(data) {
+        if (data.id === game.playerId) {
+            return;
+        }
+
+        const p = new Phaser.Point(data.x, data.y);
+        p.rotate(p.x, p.y, data.angle, false, 34);
+        let bullet = game.createBullet(p.x, p.y);
+        game.bullets.push(bullet);
+        game.physics.arcade.velocityFromRotation(data.angle, 1000, bullet.body.velocity);
     }
 
     onRemovePlayer(data) {

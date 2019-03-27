@@ -13,6 +13,7 @@ const server = http.createServer(ecstatic({root: path.resolve(__dirname, '../pub
       client.on('new player', (player) => onNewPlayer(client, player));
       client.on('disconnect', () => onRemovePlayer(client));
       client.on('move player', (player) => onMovePlayer(client, player));
+      client.on('new shoot', (shoot) => onShootCannonball(client, shoot));
     })
   });
 
@@ -44,6 +45,12 @@ function onMovePlayer(ioClient, player) {
   }
   Object.assign(moveTank, player);
   io.emit('move player', moveTank);
+}
+
+function onShootCannonball(ioClient, shoot) {
+  log(`new shoot: ${ioClient.id}`);
+  shoot.id = ioClient.id;
+  io.emit('new shoot', shoot);
 }
 
 const onRemovePlayer = client => {
