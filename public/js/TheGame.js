@@ -89,7 +89,7 @@ class TheGame {
         this.game.physics.arcade.collide(this.tankBody, this.collisionGroup);
         this.enemies.forEach(player => {
             this.game.physics.arcade.collide(player.tankBody, this.collisionGroup);
-            this.game.physics.arcade.collide(player.tankBody, this.tankBody); // TODO: if(collide===true) notify the other players
+            this.game.physics.arcade.collide(player.tankBody, this.tankBody);
         });
         this.bullets.forEach((bullet, index, list) => {
             if (bullet.body.x < 0 || bullet.body.x > gameWidth || bullet.body.y < 0) {
@@ -101,8 +101,8 @@ class TheGame {
             const hitTank = this.game.physics.arcade.collide(bullet, this.tankBody);
             // multiplayer
             let hitOtherPlayer;
-            for (let tank of this.enemies) {
-                hitOtherPlayer = this.game.physics.arcade.collide(bullet, tank);
+            for (let player of this.enemies) {
+                hitOtherPlayer = this.game.physics.arcade.collide(bullet, player.tankBody);
                 if (hitOtherPlayer) {
                     break;
                 }
@@ -211,6 +211,7 @@ class TheGame {
 
         if (this.healthCount === 0) {
             this.destroyTank();
+            this.socket.emit('remove player');
         }
     }
 
@@ -224,7 +225,6 @@ class TheGame {
     /* MULTIPLAYER */
     onSocketConnected() {
         console.log('connected to server');
-        game.enemies.forEach(enemy => enemy.player.kill());
         game.enemies = [];
         const socket = game.socket.emit('new player', {x: game.tankBody.x, y: game.tankBody.y, turretAngle: game.tankTurret.rotation});
         game.playerId = socket.id;
@@ -285,7 +285,7 @@ class TheGame {
             console.log(`player not found: ${data.id}`);
             return;
         }
-        removePlayer.player.kill();
+        game.explode(removePlayer.tankBody, 2);
         game.enemies.splice(game.enemies.indexOf(removePlayer), 1);
     }
 

@@ -11,7 +11,7 @@ const server = http.createServer(ecstatic({root: path.resolve(__dirname, '../pub
     io = socketIo.listen(server);
     io.on('connection', client => {
       client.on('new player', (player) => onNewPlayer(client, player));
-      client.on('disconnect', () => onRemovePlayer(client));
+      client.on('remove player', () => onRemovePlayer(client));
       client.on('move player', (player) => onMovePlayer(client, player));
       client.on('new shoot', (shoot) => onShootCannonball(client, shoot));
     })
@@ -55,11 +55,11 @@ function onShootCannonball(ioClient, shoot) {
 
 const onRemovePlayer = client => {
   log(`removing player: ${client.id}`);
-  const removeTank = players[client.id];
-  if (!removeTank) {
+  const removePlayer = players[client.id];
+  if (!removePlayer) {
     log(`player not found: ${client.id}`);
     return;
   }
   delete players[client.id];
-  io.emit('remove player', removeTank);
+  io.emit('remove player', removePlayer);
 };

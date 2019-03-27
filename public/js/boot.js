@@ -14,5 +14,6 @@ boot.prototype = {
     this.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
     this.scale.pageAlignHorizontally = true;
     this.game.state.start('HomePage');
+    this.stage.disableVisibilityChange = true
   }
 };
