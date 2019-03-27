@@ -27,6 +27,8 @@ class TheGame {
         this.game.load.image('land', 'assets/LowPolyMountain2-LandOnly.jpg');
         this.game.load.image('tankBody', 'assets/tankBody.png');
         this.game.load.image('tankTurret', 'assets/tankTurret.png');
+        this.game.load.image('tankBody_Enemy', 'assets/tankBody_Enemy.png');
+        this.game.load.image('tankTurret_Enemy', 'assets/tankTurret_Enemy.png');
         this.game.load.image('cannonBullet', 'assets/CannonBullet.png');
         this.game.load.image('explosion', 'assets/Explosion1.gif');
     }
@@ -181,7 +183,7 @@ class TheGame {
         this.physics.arcade.velocityFromRotation(this.tankTurret.rotation, 1000, bullet.body.velocity);
 
         // multiplayer
-        this.socket.emit('new shoot', {x: bullet.x, y: bullet.y, angle: bullet.rotation});
+        this.socket.emit('new shoot', {x: bullet.x, y: bullet.y, angle: this.tankTurret.rotation});
     }
 
     resetTankPosition() {

@@ -9,14 +9,14 @@ const RemotePlayer = function (index, game, player, startX, startY, startTurretA
     this.alive = true;
 
     // tank body
-    this.tankBody = this.game.add.sprite(x, y, 'tankBody');
+    this.tankBody = this.game.add.sprite(x, y, 'tankBody_Enemy');
     this.game.physics.arcade.enable(this.tankBody);
     this.tankBody.scale.setTo(0.3, 0.3);
     this.tankBody.body.bounce.y = 0.3;
     this.tankBody.body.gravity.y = 1000;
     this.tankBody.body.collideWorldBounds = true;
     // tank turret
-    this.tankTurret = this.tankBody.addChild(this.game.make.sprite(120, 10, 'tankTurret'));
+    this.tankTurret = this.tankBody.addChild(this.game.make.sprite(120, 10, 'tankTurret_Enemy'));
 
     this.lastPosition = {
         x: this.tankBody.x,
