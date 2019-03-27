@@ -4,8 +4,8 @@ class HomePage {
     }
 
     preload() {
-        this.game.load.image('homeBackground', 'images/LowPolyMountain.jpg');
-        this.game.load.image('playButton', 'images/PlayButtonBlue.png');
+        this.game.load.image('homeBackground', 'assets/LowPolyMountain.jpg');
+        this.game.load.image('playButton', 'assets/PlayButtonBlue.png');
     }
 
     create() {

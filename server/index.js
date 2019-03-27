@@ -10,48 +10,49 @@ const server = http.createServer(ecstatic({root: path.resolve(__dirname, '../pub
   .listen(3000, () => {
     io = socketIo.listen(server);
     io.on('connection', client => {
-      client.on('disconnect', () => onRemoveTank(client));
-      client.on('new player', (tank) => onNewTank(client, tank));
-      client.on('move player', (tank) => onMoveTank(client, tank));
+      client.on('new player', (player) => onNewPlayer(client, player));
+      client.on('disconnect', () => onRemovePlayer(client));
+      client.on('move player', (player) => onMovePlayer(client, player));
     })
   });
 
-class Tank {
-  constructor(startX, startY) {
+class Player {
+  constructor(startX, startY, turretAngle) {
     this.x = startX;
     this.y = startY;
+    this.turretAngle = turretAngle;
   }
 }
 
-const tanks = {};
+const players = {};
 
-const onRemoveTank = client => {
-  log(`removing tank: ${client.id}`);
-  const removeTank = tanks[client.id];
-  if (!removeTank) {
-    log(`tank not found: ${client.id}`);
-    return;
-  }
-  delete tanks[client.id];
-  io.emit('remove tank', removeTank);
+const onNewPlayer = (ioClient, player) => {
+  log(`new player: ${ioClient.id}`);
+  const newPlayer = new Player(player.x, player.y, player.turretAngle);
+  newPlayer.id = ioClient.id;
+  io.emit('new player', newPlayer);
+  Object.getOwnPropertyNames(players).forEach(id => ioClient.emit('new player', players[id]));
+  players[newPlayer.id] = newPlayer;
 };
 
-const onNewTank = (ioClient, tank) => {
-  log(`new tank: ${ioClient.id}`);
-  const newTank = new Tank(tank.x, tank.y);
-  newTank.id = ioClient.id;
-  io.emit('new tank', newTank);
-  Object.getOwnPropertyNames(tanks).forEach(id => ioClient.emit('new tank', tanks[id]));
-  tanks[newTank.id] = newTank;
-};
-
-function onMoveTank(ioClient, tank) {
-  log(`moving tank: ${ioClient.id}`);
-  const moveTank = tanks[ioClient.id];
+function onMovePlayer(ioClient, player) {
+  log(`moving player: ${ioClient.id}`);
+  const moveTank = players[ioClient.id];
   if (!moveTank) {
-    log(`tank not found: ${ioClient.id}`);
+    log(`player not found: ${ioClient.id}`);
     return;
   }
-  Object.assign(moveTank, tank);
-  io.emit('move tank', moveTank);
+  Object.assign(moveTank, player);
+  io.emit('move player', moveTank);
 }
+
+const onRemovePlayer = client => {
+  log(`removing player: ${client.id}`);
+  const removeTank = players[client.id];
+  if (!removeTank) {
+    log(`player not found: ${client.id}`);
+    return;
+  }
+  delete players[client.id];
+  io.emit('remove player', removeTank);
+};

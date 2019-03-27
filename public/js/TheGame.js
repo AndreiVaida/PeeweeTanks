@@ -1,3 +1,5 @@
+let game;
+
 class TheGame {
     constructor() {
         console.log('TheGame - constructor');
@@ -11,18 +13,22 @@ class TheGame {
         this.spaceKey = null;
         this.healthCount = 100;
         this.healthIndicator = null;
+        this.initialTankPositionX = null;
         // multiplayer
         this.socket = null;
         this.enemies = [];
+        this.prevPos = null;
+        this.playerId = null;
+        game = this;
     }
 
     preload() {
-        this.game.load.image('background', 'images/LowPolyMountain2.jpg');
-        this.game.load.image('land', 'images/LowPolyMountain2-LandOnly.jpg');
-        this.game.load.image('tankBody', 'images/tankBody.png');
-        this.game.load.image('tankTurret', 'images/tankTurret.png');
-        this.game.load.image('cannonBullet', 'images/CannonBullet.png');
-        this.game.load.image('explosion', 'images/Explosion1.gif');
+        this.game.load.image('background', 'assets/LowPolyMountain2.jpg');
+        this.game.load.image('land', 'assets/LowPolyMountain2-LandOnly.jpg');
+        this.game.load.image('tankBody', 'assets/tankBody.png');
+        this.game.load.image('tankTurret', 'assets/tankTurret.png');
+        this.game.load.image('cannonBullet', 'assets/CannonBullet.png');
+        this.game.load.image('explosion', 'assets/Explosion1.gif');
     }
 
     create() {
@@ -37,8 +43,8 @@ class TheGame {
         this.land.body.immovable = true;
 
         // tank body
-        const x = Math.round((gameWidth-200) * Math.round(Math.random())); // 2 random positions
-        this.tankBody = this.game.add.sprite(x, 550, 'tankBody');
+        this.initialTankPositionX = Math.round((gameWidth-200) * Math.round(Math.random())) + 50; // 2 random positions
+        this.tankBody = this.game.add.sprite(this.initialTankPositionX, 550, 'tankBody');
         this.game.physics.arcade.enable(this.tankBody);
         this.tankBody.scale.setTo(0.3, 0.3);
         this.tankBody.body.bounce.y = 0.3;
@@ -46,6 +52,12 @@ class TheGame {
         this.tankBody.body.collideWorldBounds = true;
         // tank turret
         this.tankTurret = this.tankBody.addChild(this.game.make.sprite(120, 10, 'tankTurret'));
+        // multiplayer
+        this.prevPos = {
+            x: this.tankBody.x,
+            y: this.tankBody.y,
+            turretAngle: this.tankTurret.rotation
+        };
 
         // controls
         this.cursors = this.game.input.keyboard.createCursorKeys();
@@ -72,6 +84,10 @@ class TheGame {
     update() {
         // collision
         this.game.physics.arcade.collide(this.tankBody, this.collisionGroup);
+        this.enemies.forEach(player => {
+            this.game.physics.arcade.collide(player.tankBody, this.collisionGroup);
+            this.game.physics.arcade.collide(player.tankBody, this.tankBody); // TODO: if(collide===true) notify the other players
+        });
         this.bullets.forEach((bullet, index, list) => {
             if (bullet.body.x < 0 || bullet.body.x > gameWidth || bullet.body.y < 0) {
                 list.splice(index, 1);
@@ -105,6 +121,20 @@ class TheGame {
 
             // turret rotation
             this.tankTurret.rotation = this.game.physics.arcade.angleToPointer(this.tankBody);
+
+            // multiplayer
+            if (this.tankBody.x !== this.prevPos.x || this.tankBody.y !== this.prevPos.y || this.tankTurret.rotation !== this.prevPos.turretAngle) {
+                this.socket.emit('move player', {
+                    x: this.tankBody.x,
+                    y: this.tankBody.y,
+                    turretAngle: this.tankTurret.rotation
+                });
+                this.prevPos = {
+                    x: this.tankBody.x,
+                    y: this.tankBody.y,
+                    turretAngle: this.tankTurret.rotation
+                };
+            }
         }
     }
 
@@ -138,10 +168,13 @@ class TheGame {
         let bullet = this.createBullet(p.x, p.y);
         this.bullets.push(bullet);
         this.physics.arcade.velocityFromRotation(this.tankTurret.rotation, 1000, bullet.body.velocity);
+
+        // multiplayer
+        this.socket.emit('new shoot', {x: bullet.x, y: bullet.y, rotation: bullet.rotation});
     }
 
     resetTankPosition() {
-        this.tankBody.reset(40, 550);
+        this.tankBody.reset(this.initialTankPositionX, 550);
     }
 
     explode(objectToExplode, size = 1) {
@@ -177,46 +210,66 @@ class TheGame {
 
     /* MULTIPLAYER */
     onSocketConnected() {
-        log('connected to server');
-        this.enemies.forEach(enemy => enemy.player.kill());
-        this.enemies = [];
-        socket.emit('new player', {x: this.tankBody.x, y: this.tankBody.y});
+        console.log('connected to server');
+        game.enemies.forEach(enemy => enemy.player.kill());
+        game.enemies = [];
+        const socket = game.socket.emit('new player', {x: game.tankBody.x, y: game.tankBody.y, turretAngle: game.tankTurret.rotation});
+        game.playerId = socket.id;
     }
 
     onSocketDisconnect() {
-        log('disconnected from server')
+        console.log('disconnected from server')
     }
 
     onNewPlayer(data) {
-        log(`new player connected: ${data.id}`);
-        var duplicate = playerById(data.id);
-        if (duplicate) {
-            log('duplicate player!');
+        if (data.id === game.playerId) {
+            console.log("You are online: " + data.id);
             return;
         }
-        enemies.push(new RemotePlayer(data.id, game, player, data.x, data.y, data.angle));
+        console.log(`new player connected: ${data.id}`);
+        var duplicate = game.getEnemyById(data.id);
+        if (duplicate) {
+            console.log('duplicate player!');
+            return;
+        }
+        game.enemies.push(new RemotePlayer(data.id, game, data, data.x, data.y, data.turretAngle));
     }
 
     onMovePlayer(data) {
-        log(`move player: ${data.id}`);
-        var movePlayer = playerById(data.id);
-        if (!movePlayer) {
-            log(`player not found: ${data.id}`);
+        if (data.id === game.playerId) {
             return;
         }
-        movePlayer.player.x = data.x;
-        movePlayer.player.y = data.y;
-        movePlayer.player.angle = data.angle;
+        const movePlayer = game.getEnemyById(data.id);
+        if (!movePlayer) {
+            console.log(`player not found: ${data.id}`);
+            return;
+        }
+
+        movePlayer.tankBody.x = data.x;
+        movePlayer.tankBody.y = data.y;
+        movePlayer.tankTurret.rotation = data.turretAngle;
     }
 
     onRemovePlayer(data) {
-        log(`remove player: ${data.id}`);
-        var removePlayer = playerById(data.id);
-        if (!removePlayer) {
-            log(`player not found: ${data.id}`);
+        if (data.id === game.playerId) {
             return;
         }
-        removePlayer.player.kill()
-        enemies.splice(enemies.indexOf(removePlayer), 1)
+        console.log(`remove player: ${data.id}`);
+        var removePlayer = game.getEnemyById(data.id);
+        if (!removePlayer) {
+            console.log(`player not found: ${data.id}`);
+            return;
+        }
+        removePlayer.player.kill();
+        game.enemies.splice(game.enemies.indexOf(removePlayer), 1);
+    }
+
+    getEnemyById(id) {
+        for (var i = 0; i < game.enemies.length; i++) {
+            if (game.enemies[i].player.id === id) {
+                return game.enemies[i];
+            }
+        }
+        return false
     }
 }
