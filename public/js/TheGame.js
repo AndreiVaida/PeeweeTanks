@@ -11,7 +11,9 @@ class TheGame {
         this.spaceKey = null;
         this.healthCount = 100;
         this.healthIndicator = null;
+        // multiplayer
         this.socket = null;
+        this.enemies = [];
     }
 
     preload() {
@@ -35,7 +37,8 @@ class TheGame {
         this.land.body.immovable = true;
 
         // tank body
-        this.tankBody = this.game.add.sprite(40, 550, 'tankBody');
+        const x = Math.round((gameWidth-200) * Math.round(Math.random())); // 2 random positions
+        this.tankBody = this.game.add.sprite(x, 550, 'tankBody');
         this.game.physics.arcade.enable(this.tankBody);
         this.tankBody.scale.setTo(0.3, 0.3);
         this.tankBody.body.bounce.y = 0.3;
@@ -59,21 +62,11 @@ class TheGame {
 
         // multiplayer
         this.socket = io.connect();
-        this.socket.on('connect', onSocketConnected);
-        this.socket.on('disconnect', onSocketDisconnect);
-        this.socket.on('new player', onNewPlayer);
-        this.socket.on('move player', onMovePlayer);
-        this.socket.on('remove player', onRemovePlayer);
-    }
-
-    createBullet() {
-        let bullet = this.add.sprite(this.tankBody.x + 30, this.tankBody.y - 10, 'cannonBullet');
-        this.game.physics.arcade.enable(bullet);
-        bullet.scale.setTo(0.2, 0.2);
-        bullet.body.bounce.y = 0.3;
-        bullet.body.gravity.y = 1000;
-        bullet.body.collideWorldBounds = false;
-        return bullet;
+        this.socket.on('connect', this.onSocketConnected);
+        this.socket.on('disconnect', this.onSocketDisconnect);
+        this.socket.on('new player', this.onNewPlayer);
+        this.socket.on('move player', this.onMovePlayer);
+        this.socket.on('remove player', this.onRemovePlayer);
     }
 
     update() {
@@ -115,12 +108,6 @@ class TheGame {
         }
     }
 
-    clickListener() {
-        if (this.tankBody.body) {
-            this.fire();
-        }
-    }
-
     paused() {
         console.log('TheGame - paused');
     }
@@ -129,11 +116,27 @@ class TheGame {
         console.log('TheGame - resumed');
     }
 
+    createBullet(x, y) {
+        let bullet = this.add.sprite(x, y, 'cannonBullet');
+        this.game.physics.arcade.enable(bullet);
+        bullet.scale.setTo(0.2, 0.2);
+        bullet.body.bounce.y = 0.3;
+        bullet.body.gravity.y = 1000;
+        bullet.body.collideWorldBounds = false;
+        return bullet;
+    }
+
+    clickListener() {
+        if (this.tankBody.body) {
+            this.fire();
+        }
+    }
+
     fire() {
-        let bullet = this.createBullet();
-        this.bullets.push(bullet);
-        const p = new Phaser.Point(this.tankTurret.x, this.tankTurret.y);
+        const p = new Phaser.Point(this.tankBody.x + 30, this.tankBody.y - 3);
         p.rotate(p.x, p.y, this.tankTurret.rotation, false, 34);
+        let bullet = this.createBullet(p.x, p.y);
+        this.bullets.push(bullet);
         this.physics.arcade.velocityFromRotation(this.tankTurret.rotation, 1000, bullet.body.velocity);
     }
 
@@ -170,5 +173,50 @@ class TheGame {
         setTimeout(() => {
             alert("GAME OVER");
         }, 1000);
+    }
+
+    /* MULTIPLAYER */
+    onSocketConnected() {
+        log('connected to server');
+        this.enemies.forEach(enemy => enemy.player.kill());
+        this.enemies = [];
+        socket.emit('new player', {x: this.tankBody.x, y: this.tankBody.y});
+    }
+
+    onSocketDisconnect() {
+        log('disconnected from server')
+    }
+
+    onNewPlayer(data) {
+        log(`new player connected: ${data.id}`);
+        var duplicate = playerById(data.id);
+        if (duplicate) {
+            log('duplicate player!');
+            return;
+        }
+        enemies.push(new RemotePlayer(data.id, game, player, data.x, data.y, data.angle));
+    }
+
+    onMovePlayer(data) {
+        log(`move player: ${data.id}`);
+        var movePlayer = playerById(data.id);
+        if (!movePlayer) {
+            log(`player not found: ${data.id}`);
+            return;
+        }
+        movePlayer.player.x = data.x;
+        movePlayer.player.y = data.y;
+        movePlayer.player.angle = data.angle;
+    }
+
+    onRemovePlayer(data) {
+        log(`remove player: ${data.id}`);
+        var removePlayer = playerById(data.id);
+        if (!removePlayer) {
+            log(`player not found: ${data.id}`);
+            return;
+        }
+        removePlayer.player.kill()
+        enemies.splice(enemies.indexOf(removePlayer), 1)
     }
 }
