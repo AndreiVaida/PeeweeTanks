@@ -18,6 +18,7 @@ class TheGame {
         this.explosion1Sound = null;
         this.gameSound = null;
         this.musicLost = null;
+        this.tankDirection = null;
         // multiplayer
         this.socket = null;
         this.playerId = null;
@@ -30,9 +31,11 @@ class TheGame {
         this.game.load.image('background', 'assets/LowPolyMountain2.jpg');
         this.game.load.image('land', 'assets/LowPolyMountain2-LandOnly.jpg');
         this.game.load.image('cloud', 'assets/Cloud.png');
-        this.game.load.image('tankBody', 'assets/tankBody.png');
+        this.game.load.image('tankBody_right', 'assets/tankBody.png');
+        this.game.load.image('tankBody_left', 'assets/tankBodyLeft.png');
         this.game.load.image('tankTurret', 'assets/tankTurret.png');
-        this.game.load.image('tankBody_Enemy', 'assets/tankBody_Enemy.png');
+        this.game.load.image('tankBody_Enemy_right', 'assets/tankBody_Enemy.png');
+        this.game.load.image('tankBody_Enemy_left', 'assets/tankBody_EnemyLeft.png');
         this.game.load.image('tankTurret_Enemy', 'assets/tankTurret_Enemy.png');
         this.game.load.image('cannonBullet', 'assets/CannonBullet.png');
         this.game.load.spritesheet('explosion', 'assets/Explosion1Sprite.png', 200, 200);
@@ -68,12 +71,17 @@ class TheGame {
 
         // tank body
         this.initialTankPositionX = Math.round((gameWidth-200) * Math.round(Math.random())) + 50; // 2 random positions
-        this.tankBody = this.game.add.sprite(this.initialTankPositionX, 550, 'tankBody');
+        if (this.initialTankPositionX < gameWidth / 2) {
+            this.tankBody = this.game.add.sprite(this.initialTankPositionX, 550, 'tankBody_right');
+        } else {
+            this.tankBody = this.game.add.sprite(this.initialTankPositionX, 550, 'tankBody_left');
+        }
         this.game.physics.arcade.enable(this.tankBody);
         this.tankBody.scale.setTo(0.3, 0.3);
         this.tankBody.body.bounce.y = 0.3;
         this.tankBody.body.gravity.y = 1000;
         this.tankBody.body.collideWorldBounds = true;
+        this.tankDirection = 'right';
         // tank turret
         this.tankTurret = this.tankBody.addChild(this.game.make.sprite(120, 10, 'tankTurret'));
         // multiplayer
@@ -167,8 +175,16 @@ class TheGame {
             this.tankBody.body.velocity.x = 0;
             if (this.cursors.left.isDown || this.aKey.isDown) {
                 this.tankBody.body.velocity.x = -100;
+                if (this.tankDirection === 'right') {
+                    this.tankBody.loadTexture('tankBody_left');
+                    this.tankDirection = 'left';
+                }
             } else if (this.cursors.right.isDown || this.dKey.isDown) {
                 this.tankBody.body.velocity.x = 100;
+                if (this.tankDirection === 'left') {
+                    this.tankBody.loadTexture('tankBody_right');
+                    this.tankDirection = 'right';
+                }
             }
             if (this.spaceKey.isDown && this.tankBody.body.touching.down) {
                 this.tankBody.body.velocity.y = -500;
@@ -185,7 +201,8 @@ class TheGame {
                 this.socket.emit('move player', {
                     x: this.tankBody.x,
                     y: this.tankBody.y,
-                    turretAngle: this.tankTurret.rotation
+                    turretAngle: this.tankTurret.rotation,
+                    tankDirection: this.tankDirection
                 });
                 this.prevPos = {
                     x: this.tankBody.x,
@@ -296,7 +313,13 @@ class TheGame {
     onSocketConnected() {
         console.log('connected to server');
         game.enemies = [];
-        const socket = game.socket.emit('new player', {x: game.tankBody.x, y: game.tankBody.y, turretAngle: game.tankTurret.rotation, healthCount: game.healthCount});
+        const socket = game.socket.emit('new player', {
+            x: game.tankBody.x,
+            y: game.tankBody.y,
+            turretAngle: game.tankTurret.rotation,
+            healthCount: game.healthCount,
+            tankDirection: game.tankDirection,
+        });
         game.playerId = socket.io.engine.id;
     }
 
@@ -331,6 +354,14 @@ class TheGame {
         movePlayer.tankBody.x = data.x;
         movePlayer.tankBody.y = data.y;
         movePlayer.tankTurret.rotation = data.turretAngle;
+        if (movePlayer.tankDirection !== data.tankDirection) {
+            if (data.tankDirection === 'left') {
+                movePlayer.tankBody.loadTexture('tankBody_Enemy_left');
+            } else {
+                movePlayer.tankBody.loadTexture('tankBody_Enemy_right');
+            }
+        }
+        movePlayer.tankDirection = data.tankDirection;
     }
 
     onShootCannonball(data) {

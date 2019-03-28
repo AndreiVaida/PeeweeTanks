@@ -1,7 +1,8 @@
-const RemotePlayer = function (index, game, player, startX, startY, startTurretAngle, startHealth) {
+const RemotePlayer = function (index, game, player, startX, startY, startTurretAngle, startHealth, startTankDirection) {
     const x = startX;
     const y = startY;
     const turretAngle = startTurretAngle;
+    let tankDirection = startTankDirection;
     let healthCount = startHealth;
 
     this.game = game;
@@ -9,7 +10,11 @@ const RemotePlayer = function (index, game, player, startX, startY, startTurretA
     this.alive = true;
 
     // tank body
-    this.tankBody = this.game.add.sprite(x, y, 'tankBody_Enemy');
+    if (x < gameWidth / 2) {
+        this.tankBody = this.game.add.sprite(x, y, 'tankBody_Enemy_right');
+    } else {
+        this.tankBody = this.game.add.sprite(x, y, 'tankBody_Enemy_left');
+    }
     this.game.physics.arcade.enable(this.tankBody);
     this.tankBody.scale.setTo(0.3, 0.3);
     this.tankBody.body.bounce.y = 0.3;
@@ -26,6 +31,7 @@ const RemotePlayer = function (index, game, player, startX, startY, startTurretA
         x: this.tankBody.x,
         y: this.tankBody.y,
         turretAngle: turretAngle,
+        tankDirection: tankDirection,
     };
 };
 
@@ -33,6 +39,7 @@ RemotePlayer.prototype.update = function () {
     this.lastPosition.x = this.player.x;
     this.lastPosition.y = this.player.y;
     this.lastPosition.angle = this.player.angle;
+    this.tankDirection = this.player.tankDirection;
     this.healthCount = this.player.healthCount;
 };
 

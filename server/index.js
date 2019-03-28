@@ -21,11 +21,12 @@ const server = http.createServer(ecstatic({root: path.resolve(__dirname, '../pub
   });
 
 class Player {
-  constructor(startX, startY, turretAngle, healthCount) {
+  constructor(startX, startY, turretAngle, healthCount, tankDirection) {
     this.x = startX;
     this.y = startY;
     this.turretAngle = turretAngle;
     this.healthCount = healthCount;
+    this.tankDirection = tankDirection;
   }
 }
 
@@ -33,7 +34,7 @@ const players = {};
 
 const onNewPlayer = (ioClient, player) => {
   log(`new player: ${ioClient.id}`);
-  const newPlayer = new Player(player.x, player.y, player.turretAngle, player.healthCount);
+  const newPlayer = new Player(player.x, player.y, player.turretAngle, player.healthCount, player.tankDirection);
   newPlayer.id = ioClient.id;
   io.emit('new player', newPlayer);
   Object.getOwnPropertyNames(players).forEach(id => ioClient.emit('new player', players[id]));
