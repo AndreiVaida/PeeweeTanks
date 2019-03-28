@@ -20,6 +20,7 @@ class TheGame {
         this.musicLost = null;
         // multiplayer
         this.socket = null;
+        this.playerId = null;
         this.enemies = null;
         this.prevPos = null;
         game = this;
@@ -35,6 +36,7 @@ class TheGame {
         this.game.load.image('tankTurret_Enemy', 'assets/tankTurret_Enemy.png');
         this.game.load.image('cannonBullet', 'assets/CannonBullet.png');
         this.game.load.spritesheet('explosion', 'assets/Explosion1Sprite.png', 200, 200);
+        this.game.load.spritesheet('colorExplosion', 'assets/ColorExplosionSprite.png', 500, 282);
         this.game.load.audio('explosion1Sound', 'assets/Explosion1.mp3');
         this.game.load.audio('menuSound', 'assets/music_race_loop.wav');
         this.game.load.audio('musicLost', 'assets/musicLost.mp3');
@@ -112,42 +114,46 @@ class TheGame {
             this.game.physics.arcade.collide(player.tankBody, this.collisionGroup);
             this.game.physics.arcade.collide(player.tankBody, this.tankBody);
         });
-        this.bullets.forEach((bullet, index, list) => {
-            if (bullet.body.x < 0 || bullet.body.x > gameWidth || bullet.body.y < 0) {
+        this.bullets.forEach((bulletItem, index, list) => {
+            if (bulletItem.bullet.body.x < 0 || bulletItem.bullet.body.x > gameWidth || bulletItem.bullet.body.y < 0) {
                 list.splice(index, 1);
                 return;
             }
-            const hitLand = this.game.physics.arcade.collide(bullet, this.collisionGroup);
+            const hitLand = this.game.physics.arcade.collide(bulletItem.bullet, this.collisionGroup);
             // this tank
-            const hitTank = this.game.physics.arcade.collide(bullet, this.tankBody);
+            const hitTank = this.game.physics.arcade.collide(bulletItem.bullet, this.tankBody);
             // other tanks
             let hitOtherPlayer;
             for (let player of this.enemies) {
-                hitOtherPlayer = this.game.physics.arcade.collide(bullet, player.tankBody);
+                hitOtherPlayer = this.game.physics.arcade.collide(bulletItem.bullet, player.tankBody);
                 if (hitOtherPlayer) {
                     break;
                 }
             }
             // clouds
-            let hitCloud;
-            let hittedCloud = null;
+            let hitCloud = null;
             this.clouds.forEach((cloud, index, list) => {
-                hitCloud = this.game.physics.arcade.collide(bullet, cloud);
-                if (hitCloud) {
-                    hittedCloud = cloud;
+                const hit = this.game.physics.arcade.collide(bulletItem.bullet, cloud);
+                if (hit) {
+                    hitCloud = cloud;
                     list.splice(index, 1);
                     return;
                 }
             });
 
             if (hitLand || hitTank || hitOtherPlayer || hitCloud) {
-                this.explode(bullet);
+                if (hitLand || hitTank || hitOtherPlayer) {
+                    this.explode(bulletItem.bullet);
+                }
                 if (hitTank) {
-                    this.giveDamage();
+                    this.giveDamage(25);
                 }
                 if (hitCloud) {
-                    this.explode(hittedCloud);
-                    console.log(this.clouds.length);
+                    this.explode(hitCloud, 'color');
+                    bulletItem.bullet.destroy();
+                    if (bulletItem.playerId === this.playerId) {
+                        this.addLife(10);
+                    }
                 }
                 list.splice(index, 1);
             }
@@ -215,25 +221,37 @@ class TheGame {
         const p = new Phaser.Point(this.tankBody.x + 30, this.tankBody.y - 3);
         p.rotate(p.x, p.y, this.tankTurret.rotation, false, 34);
         let bullet = this.createBullet(p.x, p.y);
-        this.bullets.push(bullet);
+        this.bullets.push({
+            playerId: game.playerId,
+            bullet: bullet
+        });
         this.physics.arcade.velocityFromRotation(this.tankTurret.rotation, 1000, bullet.body.velocity);
 
         // multiplayer
-        this.socket.emit('new shoot', {x: bullet.x, y: bullet.y, angle: this.tankTurret.rotation});
+        this.socket.emit('new shoot', {x: bullet.x, y: bullet.y, angle: this.tankTurret.rotation, playerId: this.playerId});
     }
 
     resetTankPosition() {
         this.tankBody.reset(this.initialTankPositionX, 550);
     }
 
-    explode(objectToExplode, size = 1) {
-        const x = objectToExplode.x - 90*size;
-        const y = objectToExplode.y - 180*size;
+    explode(objectToExplode, explosionType = 'fire', size = 0.5) {
+        let x = objectToExplode.x - 90 * size;
+        let y = objectToExplode.y - 180 * size;
         objectToExplode.destroy();
-        const explosion = this.add.sprite(x, y, 'explosion');
+        let explosion;
+        if (explosionType === 'color') {
+            x -= 70 * size; // -150
+            y += 60 * size; // -20
+            explosion = this.add.sprite(x, y, 'colorExplosion');
+            this.add.tween(explosion).to( { alpha: 0 }, 500, "Linear", true);
+        } else {
+            explosion = this.add.sprite(x, y, 'explosion');
+        }
         explosion.scale.setTo(size, size);
         // this.add.tween(explosion).to( { alpha: 0 }, 500, "Linear", true);
-        explosion.animations.add('explode', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], 60, false);
+        // explosion.animations.add('explode', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], 60, false);
+        explosion.animations.add('explode');
         explosion.play('explode');
         this.explosion1Sound.play();
         setTimeout(() => {
@@ -241,8 +259,8 @@ class TheGame {
         }, 1000);
     }
 
-    giveDamage() {
-        this.healthCount -= 25;
+    giveDamage(ammount) {
+        this.healthCount -= ammount;
         if (this.healthCount < 0) {
             this.healthCount = 0;
         }
@@ -254,11 +272,20 @@ class TheGame {
         }
     }
 
+    addLife(ammount) {
+        this.healthCount += ammount;
+        if (this.healthCount > 100) {
+            this.healthCount = 100;
+        }
+        this.healthIndicator.text = 'Health: ' + this.healthCount + '%';
+    }
+
     destroyTank() {
         this.explode(this.tankBody, 2);
         game.musicLost.play();
         setTimeout(() => {
             alert("GAME OVER");
+            this.goToHomeScreen();
         }, 1000);
     }
 
@@ -267,7 +294,7 @@ class TheGame {
         console.log('connected to server');
         game.enemies = [];
         const socket = game.socket.emit('new player', {x: game.tankBody.x, y: game.tankBody.y, turretAngle: game.tankTurret.rotation});
-        game.playerId = socket.id;
+        game.playerId = socket.io.engine.id;
     }
 
     onSocketDisconnect() {
@@ -311,7 +338,10 @@ class TheGame {
         const p = new Phaser.Point(data.x, data.y);
         p.rotate(p.x, p.y, data.angle, false, 34);
         let bullet = game.createBullet(p.x, p.y);
-        game.bullets.push(bullet);
+        game.bullets.push({
+            playerId: data.playerId,
+            bullet: bullet
+        });
         game.physics.arcade.velocityFromRotation(data.angle, 1000, bullet.body.velocity);
     }
 
@@ -333,12 +363,16 @@ class TheGame {
                 if (game.tankBody.body) {
                     alert("YOU WON !");
                 }
-                game.gameSound.stop();
-                game.socket.emit('remove player');
-                game.socket.close();
-                game.game.state.start('HomePage');
+                game.goToHomeScreen();
             }, 1000);
         }
+    }
+
+    goToHomeScreen() {
+        this.gameSound.stop();
+        this.socket.emit('remove player');
+        this.socket.close();
+        this.game.state.start('HomePage');
     }
 
     getEnemyById(id) {
@@ -353,7 +387,7 @@ class TheGame {
     onAddCloud(data) {
         let x = gameWidth;
         if (data.leftSide) {
-            x = 0;
+            x = 0 - 66;
         }
         let cloud = game.add.sprite(x, 200 + data.yOffset, 'cloud');
         game.game.physics.arcade.enable(cloud);
@@ -365,4 +399,5 @@ class TheGame {
         }
         game.clouds.push(cloud);
     }
+
 }

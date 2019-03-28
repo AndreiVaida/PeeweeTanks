@@ -75,7 +75,7 @@ function addCloud() {
       io.emit('add cloud', {leftSide, yOffset});
     }
     addCloud();
-  }, 5000);
+  }, 1000);
 }
 
 function isEmpty(obj) {
