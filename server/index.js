@@ -15,15 +15,17 @@ const server = http.createServer(ecstatic({root: path.resolve(__dirname, '../pub
       client.on('disconnect', () => onRemovePlayer(client));
       client.on('move player', (player) => onMovePlayer(client, player));
       client.on('new shoot', (shoot) => onShootCannonball(client, shoot));
+      client.on('health change', (player) => onHealthChange(client, player));
     });
     addCloud();
   });
 
 class Player {
-  constructor(startX, startY, turretAngle) {
+  constructor(startX, startY, turretAngle, healthCount) {
     this.x = startX;
     this.y = startY;
     this.turretAngle = turretAngle;
+    this.healthCount = healthCount;
   }
 }
 
@@ -31,7 +33,7 @@ const players = {};
 
 const onNewPlayer = (ioClient, player) => {
   log(`new player: ${ioClient.id}`);
-  const newPlayer = new Player(player.x, player.y, player.turretAngle);
+  const newPlayer = new Player(player.x, player.y, player.turretAngle, player.healthCount);
   newPlayer.id = ioClient.id;
   io.emit('new player', newPlayer);
   Object.getOwnPropertyNames(players).forEach(id => ioClient.emit('new player', players[id]));
@@ -76,6 +78,12 @@ function addCloud() {
     }
     addCloud();
   }, 1000);
+}
+
+function onHealthChange(ioClient, player) {
+  log(`health change: ${ioClient.id}`);
+  player.id = ioClient.id;
+  io.emit('health change', player);
 }
 
 function isEmpty(obj) {

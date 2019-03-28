@@ -105,6 +105,7 @@ class TheGame {
         this.socket.on('new shoot', this.onShootCannonball);
         this.socket.on('remove player', this.onRemovePlayer);
         this.socket.on('add cloud', this.onAddCloud);
+        this.socket.on('health change', this.onHealthChange);
     }
 
     update() {
@@ -147,12 +148,14 @@ class TheGame {
                 }
                 if (hitTank) {
                     this.giveDamage(25);
+                    this.socket.emit('health change', {healthCount: this.healthCount});
                 }
                 if (hitCloud) {
                     this.explode(hitCloud, 'color');
                     bulletItem.bullet.destroy();
                     if (bulletItem.playerId === this.playerId) {
                         this.addLife(10);
+                        this.socket.emit('health change', {healthCount: this.healthCount});
                     }
                 }
                 list.splice(index, 1);
@@ -293,7 +296,7 @@ class TheGame {
     onSocketConnected() {
         console.log('connected to server');
         game.enemies = [];
-        const socket = game.socket.emit('new player', {x: game.tankBody.x, y: game.tankBody.y, turretAngle: game.tankTurret.rotation});
+        const socket = game.socket.emit('new player', {x: game.tankBody.x, y: game.tankBody.y, turretAngle: game.tankTurret.rotation, healthCount: game.healthCount});
         game.playerId = socket.io.engine.id;
     }
 
@@ -312,7 +315,7 @@ class TheGame {
             console.log('duplicate player!');
             return;
         }
-        game.enemies.push(new RemotePlayer(data.id, game, data, data.x, data.y, data.turretAngle));
+        game.enemies.push(new RemotePlayer(data.id, game, data, data.x, data.y, data.turretAngle, data.healthCount));
     }
 
     onMovePlayer(data) {
@@ -400,4 +403,15 @@ class TheGame {
         game.clouds.push(cloud);
     }
 
+    onHealthChange(data) {
+        if (data.id === game.playerId) {
+            return;
+        }
+        const player = game.getEnemyById(data.id);
+        if (!player) {
+            console.log(`player not found: ${data.id}`);
+            return;
+        }
+        player.healthIndicator.text = data.healthCount + "%";
+    }
 }
